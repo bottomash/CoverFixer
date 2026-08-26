@@ -13,6 +13,8 @@ var tests = new List<(string Name, Action Run)>
     ("Episode still accepts language-neutral TMDB image", EpisodeStillAcceptsNeutralImage),
     ("Episode still prefers TMDB over a larger secondary provider", EpisodeStillPrefersTmdb),
     ("Episode still rejects portrait artwork", EpisodeStillRejectsPortrait),
+    ("Episode still requires larger area to replace screenshot", EpisodeStillRequiresLargerArea),
+    ("Episode still keeps equal-resolution screenshot untouched", EpisodeStillKeepsEqualScreenshot),
     ("Episode poster-like detection uses aspect ratio", EpisodePosterDetection),
 };
 
@@ -95,6 +97,25 @@ static void EpisodeStillRejectsPortrait()
     if (CoverSelector.SelectEpisodeStill(new[] { poster }) is not null)
     {
         throw new InvalidOperationException("不应把竖版海报作为单集剧照");
+    }
+}
+
+static void EpisodeStillRequiresLargerArea()
+{
+    var screenshot = Image(null, "https://example.invalid/shot.jpg", 1280, 720, "TheMovieDb");
+    var larger = Image(null, "https://example.invalid/larger.jpg", 1920, 1080, "TheMovieDb");
+    AssertSame(
+        larger,
+        CoverSelector.SelectEpisodeStill(new[] { screenshot, larger }, minimumPixelArea: 1280L * 720));
+}
+
+static void EpisodeStillKeepsEqualScreenshot()
+{
+    var screenshot = Image(null, "https://example.invalid/shot.jpg", 1920, 1080, "TheMovieDb");
+    var same = Image(null, "https://example.invalid/same.jpg", 1920, 1080, "TheMovieDb");
+    if (CoverSelector.SelectEpisodeStill(new[] { screenshot, same }, minimumPixelArea: 1920L * 1080) is not null)
+    {
+        throw new InvalidOperationException("相同分辨率的剧照不应被替换");
     }
 }
 

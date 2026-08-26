@@ -35,7 +35,9 @@ public static class CoverSelector
             .FirstOrDefault();
     }
 
-    public static RemoteImageInfo? SelectEpisodeStill(IEnumerable<RemoteImageInfo> images)
+    public static RemoteImageInfo? SelectEpisodeStill(
+        IEnumerable<RemoteImageInfo> images,
+        long minimumPixelArea = 0)
     {
         ArgumentNullException.ThrowIfNull(images);
 
@@ -43,7 +45,8 @@ public static class CoverSelector
             .Where(image =>
                 image is not null
                 && !string.IsNullOrWhiteSpace(image.Url)
-                && IsLandscape(image.Width ?? 0, image.Height ?? 0))
+                && IsLandscape(image.Width ?? 0, image.Height ?? 0)
+                && PixelArea(image) > minimumPixelArea)
             .OrderBy(image => IsMovieDb(image.ProviderName) ? 0 : 1)
             .ThenByDescending(PixelArea)
             .ThenByDescending(image => image.CommunityRating ?? double.MinValue)
@@ -70,8 +73,11 @@ public static class CoverSelector
     private static string NormalizeLanguage(string? language) =>
         (language ?? string.Empty).Trim().Replace('_', '-').ToLowerInvariant();
 
+    internal static long PixelArea(int width, int height) =>
+        Math.Max(0, (long)width) * Math.Max(0, (long)height);
+
     private static long PixelArea(RemoteImageInfo image) =>
-        Math.Max(0, (long)(image.Width ?? 0)) * Math.Max(0, (long)(image.Height ?? 0));
+        PixelArea(image.Width ?? 0, image.Height ?? 0);
 
     private static bool IsLandscape(int width, int height) =>
         width > 0 && height > 0 && width / (double)height >= MinimumEpisodeStillAspectRatio;

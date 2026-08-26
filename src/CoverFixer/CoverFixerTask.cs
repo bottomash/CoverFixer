@@ -86,7 +86,7 @@ public sealed class CoverFixerTask : IScheduledTask
         int failed = 0;
 
         _logger.Info(
-            "开始补全封面：媒体总数={0} 缺失或单集封面异常={1}",
+            "开始补全封面：媒体总数={0} 待检查={1}",
             items.Length,
             pending.Length);
 
@@ -158,6 +158,15 @@ public sealed class CoverFixerTask : IScheduledTask
 
         bool replacingEpisodePoster = item is Episode && item.HasImage(ImageType.Primary, 0);
 
+        long minimumEpisodeArea = 0;
+        if (item is Episode episode
+            && episode.GetImageInfo(ImageType.Primary, 0) is ItemImageInfo current
+            && !CoverSelector.IsEpisodePosterLike(current.Width, current.Height))
+        {
+            // 已有横版剧照：只有更大分辨率的远程剧照才替换，避免重复替换和覆盖手动设置的图。
+            minimumEpisodeArea = CoverSelector.PixelArea(current.Width, current.Height);
+        }
+
         var libraryOptions = _libraryManager.GetLibraryOptions(item);
         var query = new RemoteImageQuery
         {
@@ -175,7 +184,7 @@ public sealed class CoverFixerTask : IScheduledTask
             .ConfigureAwait(false)).ToArray();
 
         RemoteImageInfo? selected = item is Episode
-            ? CoverSelector.SelectEpisodeStill(candidates)
+            ? CoverSelector.SelectEpisodeStill(candidates, minimumEpisodeArea)
             : CoverSelector.Select(candidates);
         if (selected is null)
         {
@@ -233,7 +242,7 @@ public sealed class CoverFixerTask : IScheduledTask
             return false;
         }
 
-        ItemImageInfo image = item.GetImageInfo(ImageType.Primary, 0);
-        return image is not null && CoverSelector.IsEpisodePosterLike(image.Width, image.Height);
+        // 单集已有图片也要检查：自动截图会被更大分辨率的 TheMovieDb 剧照替换。
+        return item.GetImageInfo(ImageType.Primary, 0) is not null;
     }
 }
