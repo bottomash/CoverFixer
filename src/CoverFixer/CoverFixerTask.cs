@@ -165,24 +165,31 @@ public sealed class CoverFixerTask : IScheduledTask
             IncludeAllLanguages = true,
         };
 
-        IEnumerable<RemoteImageInfo> images = await _providerManager
+        RemoteImageInfo[] candidates = (await _providerManager
             .GetAvailableRemoteImages(
                 item,
                 libraryOptions,
                 query,
                 _directoryService,
                 cancellationToken)
-            .ConfigureAwait(false);
+            .ConfigureAwait(false)).ToArray();
 
         RemoteImageInfo? selected = item is Episode
-            ? CoverSelector.SelectEpisodeStill(images)
-            : CoverSelector.Select(images);
+            ? CoverSelector.SelectEpisodeStill(candidates)
+            : CoverSelector.Select(candidates);
         if (selected is null)
         {
-            _logger.Debug(
-                "没有合适封面：类型={0} 名称={1}",
+            string languages = string.Join(
+                ",",
+                candidates
+                    .Select(image => string.IsNullOrWhiteSpace(image.Language) ? "(未标注)" : image.Language)
+                    .Distinct(StringComparer.OrdinalIgnoreCase));
+            _logger.Info(
+                "没有合适封面：类型={0} 名称={1} 候选图片数={2} 语言={3}",
                 item.GetType().Name,
-                item.Name);
+                item.Name,
+                candidates.Length,
+                languages);
             return false;
         }
 
