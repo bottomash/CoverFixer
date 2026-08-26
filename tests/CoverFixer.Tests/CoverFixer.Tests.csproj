@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EmbyServerPath Condition="'$(EmbyServerPath)' == ''">D:/emby/system</EmbyServerPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/CoverFixer/CoverFixer.csproj" />
+    <Reference Include="MediaBrowser.Common">
+      <HintPath>$(EmbyServerPath)/MediaBrowser.Common.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="MediaBrowser.Controller">
+      <HintPath>$(EmbyServerPath)/MediaBrowser.Controller.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="MediaBrowser.Model">
+      <HintPath>$(EmbyServerPath)/MediaBrowser.Model.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
