@@ -107,33 +107,31 @@ const coverFixerCommandSource = {
     }
 };
 
-setTimeout(() => {
-    Emby.importModule('./modules/common/globalize.js').then(globalize => {
-        coverFixerCommandSource.globalize = globalize;
-        Emby.importModule('./modules/common/itemmanager/itemmanager.js').then(itemmanager => {
-            if (!itemmanager.coverFixerSeriesMenuPatched) {
-                const originalGetCommands = itemmanager.getCommands.bind(itemmanager);
-                itemmanager.getCommands = function(options) {
-                    const commands = originalGetCommands(options);
-                    if (!coverFixerIsSeriesDetailsOptions(options) ||
-                        !(options.user && options.user.Policy.IsAdministrator) ||
-                        !options.positionTo?.classList.contains('btnMoreCommands')) {
-                        return commands;
-                    }
+Emby.importModule('./modules/common/globalize.js').then(globalize => {
+    coverFixerCommandSource.globalize = globalize;
+    Emby.importModule('./modules/common/itemmanager/itemmanager.js').then(itemmanager => {
+        if (!itemmanager.coverFixerSeriesMenuPatched) {
+            const originalGetCommands = itemmanager.getCommands.bind(itemmanager);
+            itemmanager.getCommands = function(options) {
+                const commands = originalGetCommands(options);
+                if (!coverFixerIsSeriesDetailsOptions(options) ||
+                    !(options.user && options.user.Policy.IsAdministrator) ||
+                    !options.positionTo?.classList.contains('btnMoreCommands')) {
+                    return commands;
+                }
 
-                    const filtered = commands.filter(command =>
-                        !coverFixerHiddenSeriesCommandIds.has(command.id));
-                    if (filtered.length) {
-                        filtered[filtered.length - 1].dividerAfter = false;
-                    }
-                    return filtered;
-                };
-                itemmanager.coverFixerSeriesMenuPatched = true;
-            }
-            itemmanager.registerCommandSource(coverFixerCommandSource);
-        });
+                const filtered = commands.filter(command =>
+                    !coverFixerHiddenSeriesCommandIds.has(command.id));
+                if (filtered.length) {
+                    filtered[filtered.length - 1].dividerAfter = false;
+                }
+                return filtered;
+            };
+            itemmanager.coverFixerSeriesMenuPatched = true;
+        }
+        itemmanager.registerCommandSource(coverFixerCommandSource);
     });
-}, 3000);
+});
 ";
 
     public static byte[] ModifiedShortcutsBytes { get; private set; } = Array.Empty<byte>();

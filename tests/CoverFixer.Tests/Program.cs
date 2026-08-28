@@ -105,7 +105,8 @@ static void ShortcutInjectionIsBuilt()
         || !script.Contains("'sync'", StringComparison.Ordinal)
         || !script.Contains("'convert'", StringComparison.Ordinal)
         || !script.Contains("'delete'", StringComparison.Ordinal)
-        || !script.Contains(".btnDeleteItem", StringComparison.Ordinal))
+        || !script.Contains(".btnDeleteItem", StringComparison.Ordinal)
+        || script.Contains("}, 3000);", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("详情菜单命令未正确注入 shortcuts.js");
     }
