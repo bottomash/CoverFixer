@@ -13,6 +13,9 @@ const coverFixerHiddenSeriesCommandIds = new Set([
     'unfavorite',
     'markplayed',
     'markunplayed',
+    'shuffle',
+    'addtocollection',
+    'addtoplaylist',
     'sync',
     'convert',
     'delete'
