@@ -136,6 +136,7 @@ public sealed class CoverFixerRefreshService : BaseApiService
             Request.CancellationToken).ConfigureAwait(false);
 
         _libraryManager.UpdateImages(series);
+        series.UpdateToRepository(ItemUpdateType.ImageUpdate);
         if (!series.HasImage(ImageType.Primary, 0))
         {
             throw new InvalidOperationException("封面已写入磁盘，但 Emby 未登记为主封面");
