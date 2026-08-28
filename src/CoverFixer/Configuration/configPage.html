@@ -1,0 +1,26 @@
+<div is="emby-scroller"
+     class="view flex flex-direction-column scrollFrameY flex-grow"
+     data-horizontal="false"
+     data-forcescrollbar="true"
+     data-centerfocus="true"
+     data-bindheader="true"
+     data-controller="__plugin/coverfixerjs"
+     data-title="CoverFixer">
+    <div class="scrollSlider flex-grow flex-direction-column padded-left padded-left-page padded-right padded-top-page padded-bottom-page">
+        <form class="coverFixerConfigForm auto-center">
+            <div class="inputContainer">
+                <input class="txtTmdbReadAccessToken"
+                       is="emby-input"
+                       type="password"
+                       label="TMDB API Read Access Token"
+                       autocomplete="off" />
+                <div class="fieldDescription">用于查询作品的 original_language。Token 只保存在 Emby 本地插件配置中。</div>
+            </div>
+            <div>
+                <button is="emby-button" type="submit" class="raised button-submit block">
+                    <span>保存</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

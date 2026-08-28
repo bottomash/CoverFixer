@@ -18,14 +18,19 @@ public static class CoverSelector
             "cmn-hans",
         };
 
-    public static RemoteImageInfo? Select(IEnumerable<RemoteImageInfo> images)
+    public static RemoteImageInfo? Select(
+        IEnumerable<RemoteImageInfo> images,
+        string? originalLanguage = null)
     {
         ArgumentNullException.ThrowIfNull(images);
 
         return images
             .Where(image => image is not null && !string.IsNullOrWhiteSpace(image.Url))
-            .Select(image => new { Image = image, LanguageRank = GetLanguageRank(image.Language) })
-            .Where(candidate => candidate.LanguageRank < int.MaxValue)
+            .Select(image => new
+            {
+                Image = image,
+                LanguageRank = GetLanguageRank(image.Language, originalLanguage),
+            })
             .OrderBy(candidate => candidate.LanguageRank)
             .ThenByDescending(candidate => PixelArea(candidate.Image))
             .ThenByDescending(candidate => candidate.Image.CommunityRating ?? double.MinValue)
@@ -37,7 +42,8 @@ public static class CoverSelector
 
     public static RemoteImageInfo? SelectEpisodeStill(
         IEnumerable<RemoteImageInfo> images,
-        long minimumPixelArea = 0)
+        long minimumPixelArea = 0,
+        string? originalLanguage = null)
     {
         ArgumentNullException.ThrowIfNull(images);
 
@@ -48,6 +54,7 @@ public static class CoverSelector
                 && IsLandscape(image.Width ?? 0, image.Height ?? 0)
                 && PixelArea(image) > minimumPixelArea)
             .OrderBy(image => IsMovieDb(image.ProviderName) ? 0 : 1)
+            .ThenBy(image => GetLanguageRank(image.Language, originalLanguage))
             .ThenByDescending(PixelArea)
             .ThenByDescending(image => image.CommunityRating ?? double.MinValue)
             .ThenByDescending(image => image.VoteCount ?? int.MinValue)
@@ -58,17 +65,35 @@ public static class CoverSelector
     public static bool IsEpisodePosterLike(int width, int height) =>
         width > 0 && height > 0 && !IsLandscape(width, height);
 
-    internal static int GetLanguageRank(string? language)
+    internal static int GetLanguageRank(string? language, string? originalLanguage)
     {
         string normalized = NormalizeLanguage(language);
-        if (normalized.Equals("en", StringComparison.OrdinalIgnoreCase)
-            || normalized.StartsWith("en-", StringComparison.OrdinalIgnoreCase))
+        string normalizedOriginal = NormalizeLanguage(originalLanguage);
+        if (!string.IsNullOrEmpty(normalizedOriginal)
+            && LanguagesMatch(normalized, normalizedOriginal))
         {
             return 0;
         }
 
-        return SimplifiedChineseLanguages.Contains(normalized) ? 1 : int.MaxValue;
+        if (normalized.Equals("en", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("en-", StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
+        if (SimplifiedChineseLanguages.Contains(normalized))
+        {
+            return 2;
+        }
+
+        return string.IsNullOrEmpty(normalized) ? 3 : 4;
     }
+
+    private static bool LanguagesMatch(string language, string originalLanguage) =>
+        !string.IsNullOrEmpty(language)
+        && (language.Equals(originalLanguage, StringComparison.OrdinalIgnoreCase)
+            || language.StartsWith(originalLanguage + "-", StringComparison.OrdinalIgnoreCase)
+            || originalLanguage.StartsWith(language + "-", StringComparison.OrdinalIgnoreCase));
 
     private static string NormalizeLanguage(string? language) =>
         (language ?? string.Empty).Trim().Replace('_', '-').ToLowerInvariant();

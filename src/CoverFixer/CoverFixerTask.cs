@@ -31,6 +31,7 @@ public sealed class CoverFixerTask : IScheduledTask
     private readonly IProviderManager _providerManager;
     private readonly IDirectoryService _directoryService;
     private readonly ILogger _logger;
+    private readonly TmdbLanguageClient _tmdbLanguageClient = new();
 
     public CoverFixerTask(
         ILibraryManager libraryManager,
@@ -49,7 +50,7 @@ public sealed class CoverFixerTask : IScheduledTask
     public string Key => "CoverFixerTask";
 
     public string Description =>
-        "为电影、剧集、季和单集补全缺失的主封面；优先英文，没有时回退简体中文。";
+        "处理近一个月入库的电影、剧集、季和单集封面；按原始语言、英文、简体中文、无语言和任意语言的顺序选图。";
 
     public string Category => "媒体库";
 
@@ -67,12 +68,14 @@ public sealed class CoverFixerTask : IScheduledTask
 
     public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
     {
+        DateTimeOffset importCutoff = GetImportCutoff(DateTimeOffset.UtcNow);
         BaseItem[] items = _libraryManager.GetItemList(
             new InternalItemsQuery
             {
                 Recursive = true,
                 IncludeItemTypes = SupportedItemTypes,
                 IsVirtualItem = false,
+                MinDateCreated = importCutoff,
             },
             cancellationToken);
 
@@ -86,7 +89,8 @@ public sealed class CoverFixerTask : IScheduledTask
         int failed = 0;
 
         _logger.Info(
-            "开始补全封面：媒体总数={0} 待检查={1}",
+            "开始补全封面：入库时间不早于={0:O} 媒体总数={1} 待检查={2}",
+            importCutoff,
             items.Length,
             pending.Length);
 
@@ -136,6 +140,8 @@ public sealed class CoverFixerTask : IScheduledTask
             failed);
     }
 
+    public static DateTimeOffset GetImportCutoff(DateTimeOffset now) => now.AddMonths(-1);
+
     private async Task<bool> BackfillItem(BaseItem item, CancellationToken cancellationToken)
     {
         if (!NeedsBackfill(item))
@@ -183,9 +189,10 @@ public sealed class CoverFixerTask : IScheduledTask
                 cancellationToken)
             .ConfigureAwait(false)).ToArray();
 
+        string? originalLanguage = await GetOriginalLanguage(item, cancellationToken).ConfigureAwait(false);
         RemoteImageInfo? selected = item is Episode
-            ? CoverSelector.SelectEpisodeStill(candidates, minimumEpisodeArea)
-            : CoverSelector.Select(candidates);
+            ? CoverSelector.SelectEpisodeStill(candidates, minimumEpisodeArea, originalLanguage)
+            : CoverSelector.Select(candidates, originalLanguage);
         if (selected is null)
         {
             string languages = string.Join(
@@ -228,6 +235,39 @@ public sealed class CoverFixerTask : IScheduledTask
             selected.Width ?? 0,
             selected.Height ?? 0);
         return true;
+    }
+
+    private async Task<string?> GetOriginalLanguage(
+        BaseItem item,
+        CancellationToken cancellationToken)
+    {
+        string token = Plugin.Instance?.Configuration.TmdbReadAccessToken ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(token)
+            || !TmdbLanguageResolver.TryResolve(item, _libraryManager, out string mediaType, out string tmdbId))
+        {
+            return null;
+        }
+
+        try
+        {
+            return await _tmdbLanguageClient
+                .GetOriginalLanguage(mediaType, tmdbId, token, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception error)
+        {
+            _logger.ErrorException(
+                "查询 TMDB 原始语言失败：类型={0} 名称={1} TMDB={2}",
+                error,
+                item.GetType().Name,
+                item.Name,
+                tmdbId);
+            return null;
+        }
     }
 
     private static bool NeedsBackfill(BaseItem item)

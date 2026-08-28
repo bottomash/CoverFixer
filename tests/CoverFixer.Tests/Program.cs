@@ -1,13 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using CoverFixer;
 using MediaBrowser.Model.Providers;
 
 var tests = new List<(string Name, Action Run)>
 {
+    ("Original language wins over English", OriginalLanguageWins),
     ("English wins over larger Chinese image", EnglishWins),
     ("Simplified Chinese variants are accepted", ChineseVariants),
-    ("Traditional and unrelated languages are rejected", UnsupportedLanguages),
+    ("Language-neutral image is the fourth choice", NeutralLanguageFallback),
+    ("Any language is the final fallback", AnyLanguageFallback),
+    ("TMDB original language response is parsed", TmdbOriginalLanguageIsParsed),
+    ("Shortcut injection registers CoverFixer command source", ShortcutInjectionIsBuilt),
     ("Highest resolution wins within a language", ResolutionWins),
     ("Empty URL is rejected", EmptyUrlIsRejected),
     ("Episode still accepts language-neutral TMDB image", EpisodeStillAcceptsNeutralImage),
@@ -16,6 +21,7 @@ var tests = new List<(string Name, Action Run)>
     ("Episode still requires larger area to replace screenshot", EpisodeStillRequiresLargerArea),
     ("Episode still keeps equal-resolution screenshot untouched", EpisodeStillKeepsEqualScreenshot),
     ("Episode poster-like detection uses aspect ratio", EpisodePosterDetection),
+    ("Import cutoff uses one rolling calendar month", ImportCutoffUsesCalendarMonth),
 };
 
 int failed = 0;
@@ -36,6 +42,13 @@ foreach ((string name, Action run) in tests)
 Console.WriteLine($"RESULT total={tests.Count} failed={failed}");
 return failed == 0 ? 0 : 1;
 
+static void OriginalLanguageWins()
+{
+    var japanese = Image("ja", "https://example.invalid/ja.jpg", 1000, 1500);
+    var english = Image("en", "https://example.invalid/en.jpg", 4000, 6000);
+    AssertSame(japanese, CoverSelector.Select(new[] { english, japanese }, "ja-JP"));
+}
+
 static void EnglishWins()
 {
     var chinese = Image("zh-CN", "https://example.invalid/zh.jpg", 4000, 6000);
@@ -52,13 +65,37 @@ static void ChineseVariants()
     }
 }
 
-static void UnsupportedLanguages()
+static void NeutralLanguageFallback()
 {
-    var traditional = Image("zh-TW", "https://example.invalid/tw.jpg", 1000, 1500);
-    var japanese = Image("ja", "https://example.invalid/ja.jpg", 1000, 1500);
-    if (CoverSelector.Select(new[] { traditional, japanese }) is not null)
+    var neutral = Image(null, "https://example.invalid/neutral.jpg", 1000, 1500);
+    var japanese = Image("ja", "https://example.invalid/ja.jpg", 4000, 6000);
+    AssertSame(neutral, CoverSelector.Select(new[] { japanese, neutral }));
+}
+
+static void AnyLanguageFallback()
+{
+    var small = Image("ko", "https://example.invalid/ko.jpg", 1000, 1500);
+    var large = Image("ja", "https://example.invalid/ja.jpg", 2000, 3000);
+    AssertSame(large, CoverSelector.Select(new[] { small, large }));
+}
+
+static void TmdbOriginalLanguageIsParsed()
+{
+    using JsonDocument document = JsonDocument.Parse("{\"original_language\":\"ko\"}");
+    if (TmdbLanguageClient.ReadOriginalLanguage(document.RootElement) != "ko")
     {
-        throw new InvalidOperationException("不应选择繁体中文或无关语言");
+        throw new InvalidOperationException("未正确读取 TMDB original_language");
+    }
+}
+
+static void ShortcutInjectionIsBuilt()
+{
+    string script = ShortcutMenuHelper.BuildModifiedScript("original-shortcuts");
+    if (!script.StartsWith("original-shortcuts", StringComparison.Ordinal)
+        || !script.Contains("registerCommandSource(coverFixerCommandSource)", StringComparison.Ordinal)
+        || !script.Contains("coverfixer_refresh_tmdb_cover", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("详情菜单命令未正确注入 shortcuts.js");
     }
 }
 
@@ -129,6 +166,16 @@ static void EpisodePosterDetection()
     if (CoverSelector.IsEpisodePosterLike(1920, 1080))
     {
         throw new InvalidOperationException("横版图片不应判定为剧集海报");
+    }
+}
+
+static void ImportCutoffUsesCalendarMonth()
+{
+    var now = new DateTimeOffset(2026, 3, 31, 12, 30, 0, TimeSpan.Zero);
+    var expected = new DateTimeOffset(2026, 2, 28, 12, 30, 0, TimeSpan.Zero);
+    if (CoverFixerTask.GetImportCutoff(now) != expected)
+    {
+        throw new InvalidOperationException("近一个月应按自然月回推并保留时刻与时区");
     }
 }
 
