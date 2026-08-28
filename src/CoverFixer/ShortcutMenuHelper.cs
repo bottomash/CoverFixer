@@ -8,8 +8,39 @@ namespace CoverFixer;
 internal static class ShortcutMenuHelper
 {
     private const string Injection = @"
+const coverFixerHiddenSeriesCommandIds = new Set([
+    'favorite',
+    'unfavorite',
+    'markplayed',
+    'markunplayed',
+    'sync',
+    'convert',
+    'delete'
+]);
+
+function coverFixerIsSeriesDetailsOptions(options) {
+    return options.items?.length === 1 &&
+        options.items[0].Type === 'Series' &&
+        options.navigateOnDelete === 'back' &&
+        options.positionY === 'center';
+}
+
+function coverFixerShowSeriesDeleteButton(options) {
+    if (!coverFixerIsSeriesDetailsOptions(options) || !options.items[0].CanDelete ||
+        !(options.user && options.user.Policy.IsAdministrator)) {
+        return;
+    }
+
+    setTimeout(() => {
+        const activeView = Array.from(document.querySelectorAll('.itemView'))
+            .find(view => view.offsetParent !== null);
+        activeView?.querySelector('.btnDeleteItem')?.classList.remove('hide');
+    }, 0);
+}
+
 const coverFixerCommandSource = {
     getCommands: function(options) {
+        coverFixerShowSeriesDeleteButton(options);
         if (options.items?.length !== 1 || options.items[0].Type !== 'Series' ||
             !(options.user && options.user.Policy.IsAdministrator)) {
             return [];
@@ -77,6 +108,25 @@ setTimeout(() => {
     Emby.importModule('./modules/common/globalize.js').then(globalize => {
         coverFixerCommandSource.globalize = globalize;
         Emby.importModule('./modules/common/itemmanager/itemmanager.js').then(itemmanager => {
+            if (!itemmanager.coverFixerSeriesMenuPatched) {
+                const originalGetCommands = itemmanager.getCommands.bind(itemmanager);
+                itemmanager.getCommands = function(options) {
+                    const commands = originalGetCommands(options);
+                    if (!coverFixerIsSeriesDetailsOptions(options) ||
+                        !(options.user && options.user.Policy.IsAdministrator) ||
+                        !options.positionTo?.classList.contains('btnMoreCommands')) {
+                        return commands;
+                    }
+
+                    const filtered = commands.filter(command =>
+                        !coverFixerHiddenSeriesCommandIds.has(command.id));
+                    if (filtered.length) {
+                        filtered[filtered.length - 1].dividerAfter = false;
+                    }
+                    return filtered;
+                };
+                itemmanager.coverFixerSeriesMenuPatched = true;
+            }
             itemmanager.registerCommandSource(coverFixerCommandSource);
         });
     });

@@ -95,7 +95,14 @@ static void ShortcutInjectionIsBuilt()
     string script = ShortcutMenuHelper.BuildModifiedScript("original-shortcuts");
     if (!script.StartsWith("original-shortcuts", StringComparison.Ordinal)
         || !script.Contains("registerCommandSource(coverFixerCommandSource)", StringComparison.Ordinal)
-        || !script.Contains("coverfixer_refresh_tmdb_cover", StringComparison.Ordinal))
+        || !script.Contains("coverfixer_refresh_tmdb_cover", StringComparison.Ordinal)
+        || !script.Contains("coverFixerHiddenSeriesCommandIds", StringComparison.Ordinal)
+        || !script.Contains("'favorite'", StringComparison.Ordinal)
+        || !script.Contains("'markplayed'", StringComparison.Ordinal)
+        || !script.Contains("'sync'", StringComparison.Ordinal)
+        || !script.Contains("'convert'", StringComparison.Ordinal)
+        || !script.Contains("'delete'", StringComparison.Ordinal)
+        || !script.Contains(".btnDeleteItem", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("详情菜单命令未正确注入 shortcuts.js");
     }
