@@ -16,7 +16,7 @@ public sealed class RefreshSeriesCover : IReturn<RefreshSeriesCoverResult>, IRet
 {
     [ApiMember(
         Name = "ItemId",
-        Description = "Emby Series Item ID",
+        Description = "Emby Series numeric Item ID",
         IsRequired = true,
         DataType = "string",
         ParameterType = "path")]

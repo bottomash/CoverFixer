@@ -13,6 +13,8 @@ var tests = new List<(string Name, Action Run)>
     ("Any language is the final fallback", AnyLanguageFallback),
     ("TMDB original language response is parsed", TmdbOriginalLanguageIsParsed),
     ("Shortcut injection registers CoverFixer command source", ShortcutInjectionIsBuilt),
+    ("Emby numeric Series Item ID is accepted", NumericSeriesItemIdIsAccepted),
+    ("Emby GUID Series Item ID is rejected", GuidSeriesItemIdIsRejected),
     ("Highest resolution wins within a language", ResolutionWins),
     ("Empty URL is rejected", EmptyUrlIsRejected),
     ("Episode still accepts language-neutral TMDB image", EpisodeStillAcceptsNeutralImage),
@@ -96,6 +98,25 @@ static void ShortcutInjectionIsBuilt()
         || !script.Contains("coverfixer_refresh_tmdb_cover", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("详情菜单命令未正确注入 shortcuts.js");
+    }
+}
+
+static void NumericSeriesItemIdIsAccepted()
+{
+    if (!CoverFixerRefreshService.TryParseEmbyItemId("36295", out long itemId)
+        || itemId != 36295)
+    {
+        throw new InvalidOperationException("未正确解析 Emby 数字 Item ID");
+    }
+}
+
+static void GuidSeriesItemIdIsRejected()
+{
+    if (CoverFixerRefreshService.TryParseEmbyItemId(
+        "12345678-1234-1234-1234-123456789abc",
+        out _))
+    {
+        throw new InvalidOperationException("不应接受 GUID 形式的 Emby Item ID");
     }
 }
 

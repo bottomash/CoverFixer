@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using MediaBrowser.Controller.Api;
@@ -70,9 +71,11 @@ public sealed class CoverFixerRefreshService : BaseApiService
             throw new InvalidOperationException("请先在 CoverFixer 配置中填写 TMDB API Read Access Token");
         }
 
-        if (!Guid.TryParse(request.ItemId, out Guid itemId))
+        if (!TryParseEmbyItemId(request.ItemId, out long itemId))
         {
-            throw new ArgumentException("无效的 Emby Series Item ID", nameof(request));
+            throw new ArgumentException(
+                "无效的 Emby Series Item ID",
+                nameof(RefreshSeriesCover.ItemId));
         }
 
         BaseItem item = _libraryManager.GetItemById(itemId)
@@ -150,11 +153,19 @@ public sealed class CoverFixerRefreshService : BaseApiService
 
         return new RefreshSeriesCoverResult
         {
-            ItemId = series.Id.ToString("N"),
+            ItemId = series.InternalId.ToString(CultureInfo.InvariantCulture),
             TmdbId = tmdbId,
             OriginalLanguage = originalLanguage ?? string.Empty,
             ImageLanguage = selected.Language ?? string.Empty,
             ProviderName = selected.ProviderName ?? string.Empty,
         };
     }
+
+    internal static bool TryParseEmbyItemId(string value, out long itemId) =>
+        long.TryParse(
+            value,
+            NumberStyles.None,
+            CultureInfo.InvariantCulture,
+            out itemId)
+        && itemId > 0;
 }
