@@ -92,10 +92,21 @@ const coverFixerCommandSource = {
                     data: {},
                     contentType: 'application/json'
                 }).then(() => {
-                    toast(locale === 'zh-cn'
-                        ? '\u5df2\u5237\u65b0 TMDB \u5c01\u9762'
-                        : (['zh-hk', 'zh-tw'].includes(locale) ? '\u5df2\u66f4\u65b0 TMDB \u5c01\u9762' : 'TMDB cover refreshed'));
-                    setTimeout(() => window.location.reload(), 400);
+                    return Emby.importModule('./modules/emby-apiclient/events.js').then(eventsModule => {
+                        const events = eventsModule.default || eventsModule;
+                        events.trigger(apiClient, 'message', [{
+                            MessageType: 'LibraryChanged',
+                            Data: {
+                                ItemsAdded: [],
+                                ItemsRemoved: [],
+                                ItemsUpdated: [items[0].Id],
+                                IsLocalEvent: true
+                            }
+                        }]);
+                        toast(locale === 'zh-cn'
+                            ? '\u5df2\u5237\u65b0 TMDB \u5c01\u9762'
+                            : (['zh-hk', 'zh-tw'].includes(locale) ? '\u5df2\u66f4\u65b0 TMDB \u5c01\u9762' : 'TMDB cover refreshed'));
+                    });
                 }).catch(error => {
                     toast(locale === 'zh-cn'
                         ? '\u5237\u65b0 TMDB \u5c01\u9762\u5931\u8d25'
