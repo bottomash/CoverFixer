@@ -71,25 +71,25 @@ jobs:
 
       - name: Restore
         shell: pwsh
-        run: dotnet restore ./tests/CoverFixer.Tests/CoverFixer.Tests.csproj --nologo -p:EmbyServerPath="$env:EMBY_SERVER_PATH"
+        run: dotnet restore ./tests/CoverFixer.Tests.csproj --nologo -p:EmbyServerPath="$env:EMBY_SERVER_PATH"
 
       - name: Build plugin
         shell: pwsh
-        run: dotnet build ./src/CoverFixer/CoverFixer.csproj -c Release --no-restore --nologo -p:EmbyServerPath="$env:EMBY_SERVER_PATH"
+        run: dotnet build ./src/CoverFixer.csproj -c Release --no-restore --nologo -p:EmbyServerPath="$env:EMBY_SERVER_PATH"
 
       - name: Build tests
         shell: pwsh
-        run: dotnet build ./tests/CoverFixer.Tests/CoverFixer.Tests.csproj -c Release --no-restore --nologo -p:EmbyServerPath="$env:EMBY_SERVER_PATH"
+        run: dotnet build ./tests/CoverFixer.Tests.csproj -c Release --no-restore --nologo -p:EmbyServerPath="$env:EMBY_SERVER_PATH"
 
       - name: Run tests
         shell: pwsh
-        run: dotnet run --project ./tests/CoverFixer.Tests/CoverFixer.Tests.csproj -c Release --no-build --no-restore --nologo -p:EmbyServerPath="$env:EMBY_SERVER_PATH"
+        run: dotnet run --project ./tests/CoverFixer.Tests.csproj -c Release --no-build --no-restore --nologo -p:EmbyServerPath="$env:EMBY_SERVER_PATH"
 
       - name: Copy DLL to repository root
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $source = './src/CoverFixer/bin/Release/net8.0/CoverFixer.dll'
+          $source = './src/bin/Release/net8.0/CoverFixer.dll'
           $destination = './CoverFixer.dll'
           if (-not (Test-Path -LiteralPath $source)) {
             throw "构建产物不存在：$source"
